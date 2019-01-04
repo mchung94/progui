@@ -16,10 +16,6 @@
     (format stream "left: ~D top: ~D width: ~D height: ~D"
             (rect-left object) (rect-top object) (rect-width object) (rect-height object))))
 
-(defun initialize ()
-  "Load libraries during application initialization time if needed."
-  (progui-sys:initialize))
-
 (defun virtual-screen-rect ()
   "Return a rect showing the bounding rectangle around all the monitors."
   (make-instance 'rect

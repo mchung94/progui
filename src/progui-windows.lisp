@@ -5,10 +5,6 @@
     (t (:default "user32")))
   (cffi:use-foreign-library user32))
 
-(defun initialize ()
-  "Load libraries during application initialization time if needed."
-  (cffi:load-foreign-library 'user32))
-
 (defconstant +sm-xvirtualscreen+ 76 "The coordinate for the left side of the virtual screen.")
 (defconstant +sm-yvirtualscreen+ 77 "The coordinate for the top of the virtual screen.")
 (defconstant +sm-cxvirtualscreen+ 78 "The width of the virtual screen in pixels.")
