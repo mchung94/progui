@@ -29,5 +29,5 @@
   (progui-sys:get-cursor-position))
 
 (defun move-cursor (x y)
-  "Move the cursor to the given (X, Y) coordinate."
+  "Move the cursor to the given (X, Y) coordinate.  Return T if the event was successfully sent."
   (progui-sys:move-cursor x y))

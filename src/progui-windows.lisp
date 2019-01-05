@@ -150,8 +150,20 @@ as if it was 3200x1800."
   (ceiling (* (- coordinate lowest-value) 65536) width-or-height))
 
 (defun move-cursor (x y)
-  "Move the cursor to the given (X, Y) coordinate."
+  "Move the cursor to the given (X, Y) coordinate.  Return T if the event was successfully sent."
   (with-standard-dpi-awareness
-    (send-mouse-input :dx (normalized-absolute-coordinate x (virtual-screen-left) (virtual-screen-width))
-                      :dy (normalized-absolute-coordinate y (virtual-screen-top) (virtual-screen-height))
-                      :dw-flags (logior +mouseeventf-move+ +mouseeventf-virtualdesk+ +mouseeventf-absolute+))))
+    (let* ((normalized-x (normalized-absolute-coordinate x (virtual-screen-left) (virtual-screen-width)))
+           (normalized-y (normalized-absolute-coordinate y (virtual-screen-top) (virtual-screen-height)))
+           (flags (logior +mouseeventf-move+ +mouseeventf-virtualdesk+ +mouseeventf-absolute+))
+           (retval (send-mouse-input :dx normalized-x :dy normalized-y :dw-flags flags)))
+      ;; Try it a second time if it doesn't appear at the right place.
+      ;; One example:
+      ;; 1920x1080 monitor on the left and 2560x1440 monitor on the right (the primary monitor).
+      ;; The top row of the monitors line up.
+      ;; If the cursor's on the left monitor and I want to move it to the right monitor with Y coordinate
+      ;; below the left monitor's bottom (1079), then it moves the cursor to the correct Y coordinate but the
+      ;; wrong X coordinate (0).
+      (destructuring-bind (real-x . real-y) (get-cursor-position)
+        (when (or (/= real-x x) (/= real-y y))
+          (setf retval (send-mouse-input :dx normalized-x :dy normalized-y :dw-flags flags))))
+      (= 1 retval))))
