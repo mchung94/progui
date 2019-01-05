@@ -104,6 +104,10 @@ Return the old DPI awareness context."
   (p-inputs :pointer)
   (cb-size :int))
 
+;;; Define the GetDoubleClickTime function
+(cffi:defcfun (%get-double-click-time "GetDoubleClickTime" :convention :stdcall) :uint
+  "Return the maximum number of milliseconds that may occur between two clicks to count as a double-click.")
+
 (defun virtual-screen-left ()
   "Return the coordinate for the left side of the virtual screen."
   (%get-system-metrics +sm-xvirtualscreen+))
@@ -224,3 +228,7 @@ Return T if the event was successfully sent."
                                      (:middle +mouseeventf-middleup+)
                                      (:right +mouseeventf-rightup+)
                                      ((:xbutton1 :xbutton2) +mouseeventf-xup+)))))
+
+(defun get-double-click-time ()
+  "Return the maximum number of seconds (a real number) delay between two clicks to count as a double-click."
+  (/ (%get-double-click-time) 1000))

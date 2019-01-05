@@ -9,6 +9,7 @@
    #:move-cursor
    #:press-mouse-button
    #:release-mouse-button
+   #:get-double-click-time
    ))
 
 (defpackage #:progui
@@ -25,4 +26,5 @@
    #:press-mouse-button
    #:release-mouse-button
    #:click-mouse-button
+   #:double-click-mouse-button
    ))
