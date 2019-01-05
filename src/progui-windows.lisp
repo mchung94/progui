@@ -104,19 +104,6 @@ Return the old DPI awareness context."
   (p-inputs :pointer)
   (cb-size :int))
 
-(defun send-mouse-input (&key (dx 0) (dy 0) (mouse-data 0) (dw-flags 0) (time 0) (dw-extra-info 0))
-  "A convenience function to call SendInput using mouse input data."
-  (cffi:with-foreign-object (in 'input)
-    (let ((ptr (cffi:foreign-slot-pointer in 'input 'dummy-union-name)))
-      (setf (cffi:foreign-slot-value in 'input 'type) +input-mouse+
-            (cffi:foreign-slot-value ptr 'mouse-input 'dx) dx
-            (cffi:foreign-slot-value ptr 'mouse-input 'dy) dy
-            (cffi:foreign-slot-value ptr 'mouse-input 'mouse-data) mouse-data
-            (cffi:foreign-slot-value ptr 'mouse-input 'dw-flags) dw-flags
-            (cffi:foreign-slot-value ptr 'mouse-input 'time) time
-            (cffi:foreign-slot-value ptr 'mouse-input 'dw-extra-info) dw-extra-info))
-    (%send-input 1 in (cffi:foreign-type-size 'input))))
-
 (defun virtual-screen-left ()
   "Return the coordinate for the left side of the virtual screen."
   (%get-system-metrics +sm-xvirtualscreen+))
@@ -157,6 +144,19 @@ as if it was 3200x1800."
       (cons (cffi:foreign-slot-value p '(:struct point) 'x)
             (cffi:foreign-slot-value p '(:struct point) 'y)))))
 
+(defun send-mouse-input (&key (dx 0) (dy 0) (mouse-data 0) (dw-flags 0) (time 0) (dw-extra-info 0))
+  "A convenience function to call SendInput using mouse input data."
+  (cffi:with-foreign-object (in 'input)
+    (let ((ptr (cffi:foreign-slot-pointer in 'input 'dummy-union-name)))
+      (setf (cffi:foreign-slot-value in 'input 'type) +input-mouse+
+            (cffi:foreign-slot-value ptr 'mouse-input 'dx) dx
+            (cffi:foreign-slot-value ptr 'mouse-input 'dy) dy
+            (cffi:foreign-slot-value ptr 'mouse-input 'mouse-data) mouse-data
+            (cffi:foreign-slot-value ptr 'mouse-input 'dw-flags) dw-flags
+            (cffi:foreign-slot-value ptr 'mouse-input 'time) time
+            (cffi:foreign-slot-value ptr 'mouse-input 'dw-extra-info) dw-extra-info))
+    (%send-input 1 in (cffi:foreign-type-size 'input))))
+
 (defun normalized-absolute-coordinate (coordinate lowest-value width-or-height)
   "Convert a virtual screen pixel coordinate to an absolute value in the range [0, 65535]."
   (ceiling (* (- coordinate lowest-value) 65536) width-or-height))
@@ -193,10 +193,11 @@ Normally :PRIMARY is :LEFT and :SECONDARY is :RIGHT, but if the buttons are swap
       (:secondary (if swapped :left :right))
       (otherwise button))))
 
-(defun mouse-down (button)
+(defun press-mouse-button (button)
   "Press the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
 :LEFT, :MIDDLE, and :RIGHT press the left/middle/right buttons.  :XBUTTON1 and :XBUTTON2 are the buttons that may be
-on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped."
+on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
+Return T if the event was successfully sent."
   (setf button (adjust-for-swap button))
   (= 1 (send-mouse-input :mouse-data (case button 
                                        (:xbutton1 +xbutton1+)
@@ -208,10 +209,11 @@ on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT
                                      (:right +mouseeventf-rightdown+)
                                      ((:xbutton1 :xbutton2) +mouseeventf-xdown+)))))
 
-(defun mouse-up (button)
+(defun release-mouse-button (button)
   "Release the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
 :LEFT, :MIDDLE, and :RIGHT release the left/middle/right buttons.  :XBUTTON1 and :XBUTTON2 are the buttons that may be
-on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped."
+on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
+Return T if the event was successfully sent."
   (setf button (adjust-for-swap button))
   (= 1 (send-mouse-input :mouse-data (case button
                                        (:xbutton1 +xbutton1+)

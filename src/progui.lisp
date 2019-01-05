@@ -32,26 +32,25 @@
   "Move the cursor to the given (X, Y) coordinate.  Return T if the event was successfully sent."
   (progui-sys:move-cursor x y))
 
-(defun mouse-down (button)
+(defun press-mouse-button (button)
   "Press the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
 :LEFT, :MIDDLE, and :RIGHT press the left/middle/right buttons.  :XBUTTON1 and :XBUTTON2 are the buttons that may be
 on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
 Return T if the event was successfully sent."
-  (progui-sys:mouse-down button))
+  (progui-sys:press-mouse-button button))
 
-(defun mouse-up (button)
+(defun release-mouse-button (button)
   "Release the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
 :LEFT, :MIDDLE, and :RIGHT release the left/middle/right buttons.  :XBUTTON1 and :XBUTTON2 are the buttons that may be
 on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
 Return T if the event was successfully sent."
-  (progui-sys:mouse-up button))
+  (progui-sys:release-mouse-button button))
 
-(defun click (&optional (button :primary) (hold-down-seconds 0))
+(defun click-mouse-button (&optional (button :primary) (hold-down-seconds 0))
   "Click (press and release) the given button, which defaults to the primary button.
 The button can be one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
-hold-down-seconds is the length of time in seconds to sleep while holding the button down (can be floating point).
+hold-down-seconds is the length of time in seconds to sleep while holding the button down (a non-negative real).
 Return T if the events were successfully sent."
-  (when (mouse-down button)
-    (unless (zerop hold-down-seconds)
-      (sleep hold-down-seconds))
-    (mouse-up button)))
+  (when (press-mouse-button button)
+    (sleep hold-down-seconds)
+    (release-mouse-button button)))
