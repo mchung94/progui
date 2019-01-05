@@ -24,6 +24,10 @@
                  :width (progui-sys:virtual-screen-width)
                  :height (progui-sys:virtual-screen-height)))
 
-(defun get-mouse-position ()
-  "Return the X, Y virtual screen coordinates of the mouse cursor in a cons."
-  (progui-sys:cursor-position))
+(defun get-cursor-position ()
+  "Return the X, Y virtual screen coordinates of the cursor in a cons."
+  (progui-sys:get-cursor-position))
+
+(defun move-cursor (x y)
+  "Move the cursor to the given (X, Y) coordinate."
+  (progui-sys:move-cursor x y))
