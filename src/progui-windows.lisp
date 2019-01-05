@@ -5,6 +5,7 @@
 (cffi:use-foreign-library user32)
 
 ;;; Define the Windows API GetSystemMetrics function
+(defconstant +sm-swapbutton+ 23)
 (defconstant +sm-xvirtualscreen+ 76)
 (defconstant +sm-yvirtualscreen+ 77)
 (defconstant +sm-cxvirtualscreen+ 78)
@@ -51,7 +52,18 @@ Return the old DPI awareness context."
 
 (cffi:defctype mouse-input (:struct tag-mouse-input))
 
+(defconstant +xbutton1+ #x0001)
+(defconstant +xbutton2+ #x0002)
+
 (defconstant +mouseeventf-move+ #x0001)
+(defconstant +mouseeventf-leftdown+ #x0002)
+(defconstant +mouseeventf-leftup+ #x0004)
+(defconstant +mouseeventf-rightdown+ #x0008)
+(defconstant +mouseeventf-rightup+ #x0010)
+(defconstant +mouseeventf-middledown+ #x0020)
+(defconstant +mouseeventf-middleup+ #x0040)
+(defconstant +mouseeventf-xdown+ #x0080)
+(defconstant +mouseeventf-xup+ #x0100)
 (defconstant +mouseeventf-virtualdesk+ #x4000)
 (defconstant +mouseeventf-absolute+ #x8000)
 
@@ -167,3 +179,46 @@ as if it was 3200x1800."
         (when (or (/= real-x x) (/= real-y y))
           (setf retval (send-mouse-input :dx normalized-x :dy normalized-y :dw-flags flags))))
       (= 1 retval))))
+
+(defun mouse-buttons-swapped-p ()
+  "Return T if the left and right mouse buttons are swapped."
+  (= 1 (%get-system-metrics +sm-swapbutton+)))
+
+(defun adjust-for-swap (button)
+  "If the button is :PRIMARY or :SECONDARY, return :LEFT or :RIGHT, otherwise just return the button as is.
+Normally :PRIMARY is :LEFT and :SECONDARY is :RIGHT, but if the buttons are swapped it will return the opposite."
+  (let ((swapped (mouse-buttons-swapped-p)))
+    (case button
+      (:primary (if swapped :right :left))
+      (:secondary (if swapped :left :right))
+      (otherwise button))))
+
+(defun mouse-down (button)
+  "Press the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
+:LEFT, :MIDDLE, and :RIGHT press the left/middle/right buttons.  :XBUTTON1 and :XBUTTON2 are the buttons that may be
+on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped."
+  (setf button (adjust-for-swap button))
+  (= 1 (send-mouse-input :mouse-data (case button 
+                                       (:xbutton1 +xbutton1+)
+                                       (:xbutton2 +xbutton2+)
+                                       (otherwise 0))
+                         :dw-flags (ecase button
+                                     (:left +mouseeventf-leftdown+)
+                                     (:middle +mouseeventf-middledown+)
+                                     (:right +mouseeventf-rightdown+)
+                                     ((:xbutton1 :xbutton2) +mouseeventf-xdown+)))))
+
+(defun mouse-up (button)
+  "Release the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
+:LEFT, :MIDDLE, and :RIGHT release the left/middle/right buttons.  :XBUTTON1 and :XBUTTON2 are the buttons that may be
+on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped."
+  (setf button (adjust-for-swap button))
+  (= 1 (send-mouse-input :mouse-data (case button
+                                       (:xbutton1 +xbutton1+)
+                                       (:xbutton2 +xbutton2+)
+                                       (otherwise 0))
+                         :dw-flags (ecase button
+                                     (:left +mouseeventf-leftup+)
+                                     (:middle +mouseeventf-middleup+)
+                                     (:right +mouseeventf-rightup+)
+                                     ((:xbutton1 :xbutton2) +mouseeventf-xup+)))))

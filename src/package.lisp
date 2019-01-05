@@ -7,6 +7,8 @@
    #:virtual-screen-height
    #:get-cursor-position
    #:move-cursor
+   #:mouse-down
+   #:mouse-up
    ))
 
 (defpackage #:progui
@@ -20,4 +22,7 @@
    #:virtual-screen-rect
    #:get-cursor-position
    #:move-cursor
+   #:mouse-down
+   #:mouse-up
+   #:click
    ))
