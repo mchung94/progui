@@ -64,8 +64,12 @@ Return the old DPI awareness context."
 (defconstant +mouseeventf-middleup+ #x0040)
 (defconstant +mouseeventf-xdown+ #x0080)
 (defconstant +mouseeventf-xup+ #x0100)
+(defconstant +mouseeventf-wheel+ #x0800)
+(defconstant +mouseeventf-hwheel+ #x1000)
 (defconstant +mouseeventf-virtualdesk+ #x4000)
 (defconstant +mouseeventf-absolute+ #x8000)
+
+(defconstant +wheel-delta+ 120 "The amount of mouse wheel movement for one wheel click.")
 
 (cffi:defcstruct tag-keybd-input
   (w-vk word)
@@ -173,12 +177,6 @@ as if it was 3200x1800."
            (flags (logior +mouseeventf-move+ +mouseeventf-virtualdesk+ +mouseeventf-absolute+))
            (retval (send-mouse-input :dx normalized-x :dy normalized-y :dw-flags flags)))
       ;; Try it a second time if it doesn't appear at the right place.
-      ;; One example:
-      ;; 1920x1080 monitor on the left and 2560x1440 monitor on the right (the primary monitor).
-      ;; The top row of the monitors line up.
-      ;; If the cursor's on the left monitor and I want to move it to the right monitor with Y coordinate
-      ;; below the left monitor's bottom (1079), then it moves the cursor to the correct Y coordinate but the
-      ;; wrong X coordinate (0).
       (destructuring-bind (real-x . real-y) (get-cursor-position)
         (when (or (/= real-x x) (/= real-y y))
           (setf retval (send-mouse-input :dx normalized-x :dy normalized-y :dw-flags flags))))
@@ -232,3 +230,13 @@ Return T if the event was successfully sent."
 (defun get-double-click-time ()
   "Return the maximum number of seconds (a real number) delay between two clicks to count as a double-click."
   (/ (%get-double-click-time) 1000))
+
+(defun rotate-mouse-wheel (clicks)
+  "Rotate the mouse wheel the given number of clicks.  Positive values rotate the wheel forward, away from the user,
+and negative values rotate the wheel backward, toward the user.  Return T if the event was successfully sent."
+  (= 1 (send-mouse-input :mouse-data (* clicks +wheel-delta+) :dw-flags +mouseeventf-wheel+)))
+
+(defun rotate-mouse-wheel-horizontally (clicks)
+  "Rotate the mouse wheel horizontally the given numberr of clicks.  Positive values rotate the wheel to the right,
+and negative values rotate the wheel to the left.  Return T if the event was successfully sent."
+  (= 1 (send-mouse-input :mouse-data (* clicks +wheel-delta+) :dw-flags +mouseeventf-hwheel+)))

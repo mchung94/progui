@@ -10,6 +10,8 @@
    #:press-mouse-button
    #:release-mouse-button
    #:get-double-click-time
+   #:rotate-mouse-wheel
+   #:rotate-mouse-wheel-horizontally
    ))
 
 (defpackage #:progui
@@ -27,4 +29,6 @@
    #:release-mouse-button
    #:click-mouse-button
    #:double-click-mouse-button
+   #:rotate-mouse-wheel
+   #:rotate-mouse-wheel-horizontally
    ))

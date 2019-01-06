@@ -68,3 +68,13 @@ to the sleep function (non-negative reals).  Return T if the events were success
   (when (click-mouse-button button hold-down-seconds)
     (sleep delay-between-clicks)
     (click-mouse-button button hold-down-seconds)))
+
+(defun rotate-mouse-wheel (clicks)
+  "Rotate the mouse wheel the given number of clicks.  Positive values rotate the wheel forward, away from the user,
+and negative values rotate the wheel backward, toward the user.  Return T if the event was successfully sent."
+  (progui-sys:rotate-mouse-wheel clicks))
+
+(defun rotate-mouse-wheel-horizontally (clicks)
+  "Rotate the mouse wheel horizontally the given numberr of clicks.  Positive values rotate the wheel to the right,
+and negative values rotate the wheel to the left.  Return T if the event was successfully sent."
+  (progui-sys:rotate-mouse-wheel-horizontally clicks))
