@@ -122,3 +122,23 @@ between clicks.  Return T if the events were successfully sent.
 ; 6. (sleep 1/10)
 ; 7. (release-mouse-button :right)
 ```
+
+`rotate-mouse-wheel`: Rotate the mouse wheel vertically, forward or backward.
+The parameter is the number of clicks.  Positive values rotate the wheel
+forward, away from the user, and negative values rotate the wheel backward,
+towards the user.  Return T if the event was successfully sent.
+
+```lisp
+(progui:rotate-mouse-wheel 12)
+=> T
+```
+
+`rotate-mouse-wheel-horizontally`: Rotate the mouse wheel horizontally.  The
+parameter is the number of clicks.  Positive values rotate the wheel to the
+right, and negative values rotate the wheel to the left.  Return T if the event
+was successfully sent.
+
+```lisp
+(progui:rotate-mouse-wheel-horizontally -4)
+=> T
+```
