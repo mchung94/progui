@@ -153,7 +153,8 @@ as if it was 3200x1800."
             (cffi:foreign-slot-value p '(:struct point) 'y)))))
 
 (defun send-mouse-input (&key (dx 0) (dy 0) (mouse-data 0) (dw-flags 0) (time 0) (dw-extra-info 0))
-  "A convenience function to call SendInput using mouse input data."
+  "A convenience function to call SendInput using mouse input data.
+Return T if the event was successfully sent."
   (cffi:with-foreign-object (in 'input)
     (let ((ptr (cffi:foreign-slot-pointer in 'input 'dummy-union-name)))
       (setf (cffi:foreign-slot-value in 'input 'type) +input-mouse+
@@ -163,7 +164,7 @@ as if it was 3200x1800."
             (cffi:foreign-slot-value ptr 'mouse-input 'dw-flags) dw-flags
             (cffi:foreign-slot-value ptr 'mouse-input 'time) time
             (cffi:foreign-slot-value ptr 'mouse-input 'dw-extra-info) dw-extra-info))
-    (%send-input 1 in (cffi:foreign-type-size 'input))))
+    (= 1 (%send-input 1 in (cffi:foreign-type-size 'input)))))
 
 (defun normalized-absolute-coordinate (coordinate lowest-value width-or-height)
   "Convert a virtual screen pixel coordinate to an absolute value in the range [0, 65535]."
@@ -180,7 +181,7 @@ as if it was 3200x1800."
       (destructuring-bind (real-x . real-y) (get-cursor-position)
         (when (or (/= real-x x) (/= real-y y))
           (setf retval (send-mouse-input :dx normalized-x :dy normalized-y :dw-flags flags))))
-      (= 1 retval))))
+      retval)))
 
 (defun mouse-buttons-swapped-p ()
   "Return T if the left and right mouse buttons are swapped."
@@ -201,15 +202,15 @@ Normally :PRIMARY is :LEFT and :SECONDARY is :RIGHT, but if the buttons are swap
 on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
 Return T if the event was successfully sent."
   (setf button (adjust-for-swap button))
-  (= 1 (send-mouse-input :mouse-data (case button 
-                                       (:xbutton1 +xbutton1+)
-                                       (:xbutton2 +xbutton2+)
-                                       (otherwise 0))
-                         :dw-flags (ecase button
-                                     (:left +mouseeventf-leftdown+)
-                                     (:middle +mouseeventf-middledown+)
-                                     (:right +mouseeventf-rightdown+)
-                                     ((:xbutton1 :xbutton2) +mouseeventf-xdown+)))))
+  (send-mouse-input :mouse-data (case button 
+                                  (:xbutton1 +xbutton1+)
+                                  (:xbutton2 +xbutton2+)
+                                  (otherwise 0))
+                    :dw-flags (ecase button
+                                (:left +mouseeventf-leftdown+)
+                                (:middle +mouseeventf-middledown+)
+                                (:right +mouseeventf-rightdown+)
+                                ((:xbutton1 :xbutton2) +mouseeventf-xdown+))))
 
 (defun release-mouse-button (button)
   "Release the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
@@ -217,15 +218,15 @@ Return T if the event was successfully sent."
 on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
 Return T if the event was successfully sent."
   (setf button (adjust-for-swap button))
-  (= 1 (send-mouse-input :mouse-data (case button
-                                       (:xbutton1 +xbutton1+)
-                                       (:xbutton2 +xbutton2+)
-                                       (otherwise 0))
-                         :dw-flags (ecase button
-                                     (:left +mouseeventf-leftup+)
-                                     (:middle +mouseeventf-middleup+)
-                                     (:right +mouseeventf-rightup+)
-                                     ((:xbutton1 :xbutton2) +mouseeventf-xup+)))))
+  (send-mouse-input :mouse-data (case button
+                                  (:xbutton1 +xbutton1+)
+                                  (:xbutton2 +xbutton2+)
+                                  (otherwise 0))
+                    :dw-flags (ecase button
+                                (:left +mouseeventf-leftup+)
+                                (:middle +mouseeventf-middleup+)
+                                (:right +mouseeventf-rightup+)
+                                ((:xbutton1 :xbutton2) +mouseeventf-xup+))))
 
 (defun get-double-click-time ()
   "Return the maximum number of seconds (a real number) delay between two clicks to count as a double-click."
@@ -234,9 +235,9 @@ Return T if the event was successfully sent."
 (defun rotate-mouse-wheel (clicks)
   "Rotate the mouse wheel the given number of clicks.  Positive values rotate the wheel forward, away from the user,
 and negative values rotate the wheel backward, toward the user.  Return T if the event was successfully sent."
-  (= 1 (send-mouse-input :mouse-data (* clicks +wheel-delta+) :dw-flags +mouseeventf-wheel+)))
+  (send-mouse-input :mouse-data (* clicks +wheel-delta+) :dw-flags +mouseeventf-wheel+))
 
 (defun rotate-mouse-wheel-horizontally (clicks)
   "Rotate the mouse wheel horizontally the given numberr of clicks.  Positive values rotate the wheel to the right,
 and negative values rotate the wheel to the left.  Return T if the event was successfully sent."
-  (= 1 (send-mouse-input :mouse-data (* clicks +wheel-delta+) :dw-flags +mouseeventf-hwheel+)))
+  (send-mouse-input :mouse-data (* clicks +wheel-delta+) :dw-flags +mouseeventf-hwheel+))
