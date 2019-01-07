@@ -85,10 +85,16 @@ Return T if the event was successfully sent.
 => T
 ```
 
+`get-double-click-time`: Return the maximum number of seconds delay between
+two clicks to count as a double-click.
+```lisp
+(progui:get-double-click-time)
+=> 1/2
+```
+
 `click-mouse-button`: Click (press and release) the given mouse button.
-The optional `hold-down-seconds` parameter is the length of time in seconds to
-sleep while holding the button down.
-Return T if the events were successfully sent.
+The optional `num-times` parameter says how many times to click.
+Return T if all the events were successfully sent.
 ```lisp
 (progui:click-mouse-button)
 => T ; clicks the :PRIMARY mouse button which is the same as :LEFT unless the
@@ -98,29 +104,20 @@ Return T if the events were successfully sent.
 => T ; clicks the :LEFT mouse button regardless of the user's mouse button
      ; swap settings
 
-(progui:click-mouse-button :left 3.5)
-=> T ; sleeps for 3.5 seconds with the mouse button down before releasing
+(progui:click-mouse-button :left 2)
+=> T ; clicks the left mouse button twice in a row (double-click)
 ```
 
 `double-click-mouse-button`: Double click the given mouse button.
-The optional `hold-down-seconds` parameter is the length of time in seconds to
-sleep while holding the button down each click.  The second optional
-`delay-between-clicks` parameter is the length of time in seconds to sleep
-between clicks.  Return T if the events were successfully sent.
+The optional `seconds-between-clicks` parameter is the length of time in
+seconds to sleep between clicks.  Return T if all the events were successfully
+sent.
 ```lisp
 (progui:double-click-mouse-button)
 => T ; double click the :PRIMARY mouse button
 
-(progui:double-click-mouse-button :right 1/10 1/4)
-=> T
-; This double clicks the :RIGHT mouse button like this:
-; 1. (press-mouse-button :right)
-; 2. (sleep 1/10)
-; 3. (release-mouse-button :right)
-; 4. (sleep 1/4)
-; 5. (press-mouse-button :right)
-; 6. (sleep 1/10)
-; 7. (release-mouse-button :right)
+(progui:double-click-mouse-button :middle 0.1)
+=> T ; click the middle mouse button, wait 0.1 seconds, click it again
 ```
 
 `rotate-mouse-wheel`: Rotate the mouse wheel vertically, forward or backward.

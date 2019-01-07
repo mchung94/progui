@@ -34,40 +34,34 @@
 
 (defun press-mouse-button (button)
   "Press the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
-:LEFT, :MIDDLE, and :RIGHT press the left/middle/right buttons.  :XBUTTON1 and :XBUTTON2 are the buttons that may be
-on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
 Return T if the event was successfully sent."
   (progui-sys:press-mouse-button button))
 
 (defun release-mouse-button (button)
   "Release the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
-:LEFT, :MIDDLE, and :RIGHT release the left/middle/right buttons.  :XBUTTON1 and :XBUTTON2 are the buttons that may be
-on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
 Return T if the event was successfully sent."
   (progui-sys:release-mouse-button button))
 
-(defun click-mouse-button (&optional (button :primary) (hold-down-seconds 0))
+(defun get-double-click-time ()
+  "Return the maximum number of seconds (a real number) delay between two clicks to count as a double-click."
+  (progui-sys:get-double-click-time))
+
+(defun click-mouse-button (&optional (button :primary) (num-times 1))
   "Click (press and release) the given mouse button, which defaults to the primary button.
 The button can be one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
-hold-down-seconds is the length of time in seconds to sleep while holding the button down.
-The time must be a valid argument to the sleep function (a non-negative real).
-Return T if the events were successfully sent."
-  (when (press-mouse-button button)
-    (sleep hold-down-seconds)
-    (release-mouse-button button)))
+NUM-TIMES can be used to click multiple times, like double or triple clicking.
+Return T if all the events were successfully sent."
+  (progui-sys:click-mouse-button button num-times))
 
-(defun double-click-mouse-button (&optional (button :primary) (hold-down-seconds 0) (delay-between-clicks 0))
+(defun double-click-mouse-button (&optional (button :primary) (seconds-between-clicks 0))
   "Double click the given mouse button, which defaults to the primary button.
 The button can be one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
-hold-down-seconds is the length of time in seconds to sleep while holding the button down each click.
-delay-between-clicks is the length of time in seconds to sleep between clicks.  Both times must be valid arguments
-to the sleep function (non-negative reals).  Return T if the events were successfully sent."
-  (let ((max-delay (progui-sys:get-double-click-time)))
-    (when (> delay-between-clicks max-delay)
-      (error "The delay-between-clicks seconds must be less than the max double-click time delay (~A)." max-delay)))
-  (when (click-mouse-button button hold-down-seconds)
-    (sleep delay-between-clicks)
-    (click-mouse-button button hold-down-seconds)))
+SECONDS-BETWEEN-CLICKS adds a wait between each click.  Return T if all the events were successfully sent."
+  (if (zerop seconds-between-clicks)
+      (click-mouse-button button 2)
+    (and (click-mouse-button button)
+         (progn (sleep seconds-between-clicks)
+           (click-mouse-button button)))))
 
 (defun rotate-mouse-wheel (clicks)
   "Rotate the mouse wheel the given number of clicks.  Positive values rotate the wheel forward, away from the user,

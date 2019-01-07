@@ -152,19 +152,38 @@ as if it was 3200x1800."
       (cons (cffi:foreign-slot-value p '(:struct point) 'x)
             (cffi:foreign-slot-value p '(:struct point) 'y)))))
 
+(defun make-mouse-input-plist (&key (dx 0) (dy 0) (mouse-data 0) (dw-flags 0) (time 0) (dw-extra-info 0))
+  "Return a plist of tag-mouse-input struct parameters.  Just a helper function for calling send-mouse-inputs below."
+  `(dx ,dx dy ,dy mouse-data ,mouse-data dw-flags ,dw-flags time ,time dw-extra-info ,dw-extra-info))
+
+(defun send-mouse-inputs (mouse-input-plists)
+  "A convenience function to send a number of mouse inputs to SendInput in one call.
+Return T if all events were successfully sent."
+  (let ((num-inputs (length mouse-input-plists)))
+    (cffi:with-foreign-object (in 'input num-inputs)
+      (loop for i from 0 below num-inputs
+            for mi-plist in mouse-input-plists
+            for input-ptr = (cffi:mem-aref in 'input i)
+            for mi-ptr = (cffi:foreign-slot-pointer input-ptr 'input 'dummy-union-name)
+            do (setf (cffi:foreign-slot-value input-ptr 'input 'type) +input-mouse+
+                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'dx) (getf mi-plist 'dx)
+                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'dy) (getf mi-plist 'dy)
+                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'mouse-data) (getf mi-plist 'mouse-data)
+                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'dw-flags) (getf mi-plist 'dw-flags)
+                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'time) (getf mi-plist 'time)
+                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'dw-extra-info) (getf mi-plist 'dw-extra-info)))
+      (= num-inputs (%send-input num-inputs in (cffi:foreign-type-size 'input))))))
+
 (defun send-mouse-input (&key (dx 0) (dy 0) (mouse-data 0) (dw-flags 0) (time 0) (dw-extra-info 0))
-  "A convenience function to call SendInput using mouse input data.
+  "A convenience function to call SendInput for a single mouse input.
 Return T if the event was successfully sent."
-  (cffi:with-foreign-object (in 'input)
-    (let ((ptr (cffi:foreign-slot-pointer in 'input 'dummy-union-name)))
-      (setf (cffi:foreign-slot-value in 'input 'type) +input-mouse+
-            (cffi:foreign-slot-value ptr 'mouse-input 'dx) dx
-            (cffi:foreign-slot-value ptr 'mouse-input 'dy) dy
-            (cffi:foreign-slot-value ptr 'mouse-input 'mouse-data) mouse-data
-            (cffi:foreign-slot-value ptr 'mouse-input 'dw-flags) dw-flags
-            (cffi:foreign-slot-value ptr 'mouse-input 'time) time
-            (cffi:foreign-slot-value ptr 'mouse-input 'dw-extra-info) dw-extra-info))
-    (= 1 (%send-input 1 in (cffi:foreign-type-size 'input)))))
+  (send-mouse-inputs
+   (list (make-mouse-input-plist :dx dx
+                                 :dy dy
+                                 :mouse-data mouse-data
+                                 :dw-flags dw-flags
+                                 :time time
+                                 :dw-extra-info dw-extra-info))))
 
 (defun normalized-absolute-coordinate (coordinate lowest-value width-or-height)
   "Convert a virtual screen pixel coordinate to an absolute value in the range [0, 65535]."
@@ -196,37 +215,54 @@ Normally :PRIMARY is :LEFT and :SECONDARY is :RIGHT, but if the buttons are swap
       (:secondary (if swapped :left :right))
       (otherwise button))))
 
+(defun button-click-mouse-data (button)
+  "Return the value for the tag-mouse-input struct's mouse-data when a button is clicked."
+  (case button
+    (:xbutton1 +xbutton1+)
+    (:xbutton2 +xbutton2+)
+    (otherwise 0)))
+
+(defun button-click-dw-flags (button &key pressp)
+  "Return the value for the tag-mouse-input struct's dw-flags when a button is pressed or released.
+PRESSP should be T when pressing the button or NIL when releasing the button."
+  (ecase button
+    (:left (if pressp +mouseeventf-leftdown+ +mouseeventf-leftup+))
+    (:middle (if pressp +mouseeventf-middledown+ +mouseeventf-middleup+))
+    (:right (if pressp +mouseeventf-rightdown+ +mouseeventf-rightup+))
+    ((:xbutton1 :xbutton2) (if pressp +mouseeventf-xdown+ +mouseeventf-xup+))))
+
 (defun press-mouse-button (button)
   "Press the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
 :LEFT, :MIDDLE, and :RIGHT press the left/middle/right buttons.  :XBUTTON1 and :XBUTTON2 are the buttons that may be
 on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
 Return T if the event was successfully sent."
-  (setf button (adjust-for-swap button))
-  (send-mouse-input :mouse-data (case button 
-                                  (:xbutton1 +xbutton1+)
-                                  (:xbutton2 +xbutton2+)
-                                  (otherwise 0))
-                    :dw-flags (ecase button
-                                (:left +mouseeventf-leftdown+)
-                                (:middle +mouseeventf-middledown+)
-                                (:right +mouseeventf-rightdown+)
-                                ((:xbutton1 :xbutton2) +mouseeventf-xdown+))))
+  (let ((adjusted-button (adjust-for-swap button)))
+    (send-mouse-input :mouse-data (button-click-mouse-data adjusted-button)
+                      :dw-flags (button-click-dw-flags adjusted-button :pressp t))))
 
 (defun release-mouse-button (button)
   "Release the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
 :LEFT, :MIDDLE, and :RIGHT release the left/middle/right buttons.  :XBUTTON1 and :XBUTTON2 are the buttons that may be
 on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
 Return T if the event was successfully sent."
-  (setf button (adjust-for-swap button))
-  (send-mouse-input :mouse-data (case button
-                                  (:xbutton1 +xbutton1+)
-                                  (:xbutton2 +xbutton2+)
-                                  (otherwise 0))
-                    :dw-flags (ecase button
-                                (:left +mouseeventf-leftup+)
-                                (:middle +mouseeventf-middleup+)
-                                (:right +mouseeventf-rightup+)
-                                ((:xbutton1 :xbutton2) +mouseeventf-xup+))))
+  (let ((adjusted-button (adjust-for-swap button)))
+    (send-mouse-input :mouse-data (button-click-mouse-data adjusted-button)
+                      :dw-flags (button-click-dw-flags adjusted-button :pressp nil))))
+
+(defun click-mouse-button (button num-times)
+  "Click the given mouse button NUM-TIMES times, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
+:LEFT, :MIDDLE, and :RIGHT press the left/middle/right buttons.  :XBUTTON1 and :XBUTTON2 are the buttons that may be
+on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
+This function sends all the inputs to press and release in one call to SendInput, which makes sure the events are not
+interspersed with other keyboard or mouse input events.
+Return T if all events were successfully sent."
+  (let* ((adjusted-button (adjust-for-swap button))
+         (mouse-data (button-click-mouse-data adjusted-button))
+         (press-flags (button-click-dw-flags adjusted-button :pressp t))
+         (release-flags (button-click-dw-flags adjusted-button :pressp nil))
+         (press (make-mouse-input-plist :mouse-data mouse-data :dw-flags press-flags))
+         (release (make-mouse-input-plist :mouse-data mouse-data :dw-flags release-flags)))
+    (send-mouse-inputs (loop repeat num-times nconc (list press release)))))
 
 (defun get-double-click-time ()
   "Return the maximum number of seconds (a real number) delay between two clicks to count as a double-click."
