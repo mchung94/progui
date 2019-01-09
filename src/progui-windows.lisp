@@ -50,8 +50,6 @@ Return the old DPI awareness context."
   (time dword)
   (dw-extra-info ulong-ptr))
 
-(cffi:defctype mouse-input (:struct tag-mouse-input))
-
 (defconstant +xbutton1+ #x0001)
 (defconstant +xbutton2+ #x0002)
 
@@ -78,19 +76,19 @@ Return the old DPI awareness context."
   (time dword)
   (dw-extra-info ulong-ptr))
 
-(cffi:defctype keybd-input (:struct tag-keybd-input))
-
 (cffi:defcstruct tag-hardware-input
   (u-msg dword)
   (w-param-l word)
   (w-param-h word))
 
-(cffi:defctype hardware-input (:struct tag-hardware-input))
+(cffi:defctype mi (:struct tag-mouse-input))
+(cffi:defctype ki (:struct tag-keybd-input))
+(cffi:defctype hi (:struct tag-hardware-input))
 
 (cffi:defcunion input-union
-  (mi mouse-input)
-  (ki keybd-input)
-  (hi hardware-input))
+  (mi mi)
+  (ki ki)
+  (hi hi))
 
 (cffi:defcstruct tag-input
   (type dword)
@@ -152,41 +150,51 @@ as if it was 3200x1800."
       (cons (cffi:foreign-slot-value p '(:struct point) 'x)
             (cffi:foreign-slot-value p '(:struct point) 'y)))))
 
-(defun make-mouse-input (&key (dx 0) (dy 0) (mouse-data 0) (dw-flags 0) (time 0) (dw-extra-info 0))
-  "Return a plist of tag-mouse-input struct parameters.  A helper function for calling send-inputs below."
-  `(dx ,dx dy ,dy mouse-data ,mouse-data dw-flags ,dw-flags time ,time dw-extra-info ,dw-extra-info))
+(defstruct mouse-input
+  "A Lisp version of the tag-mouse-input CFFI structure."
+  (dx 0)
+  (dy 0)
+  (mouse-data 0)
+  (dw-flags 0)
+  (time 0)
+  (dw-extra-info 0))
 
-(defun make-keybd-input (&key (w-vk 0) (w-scan 0) (dw-flags 0) (time 0) (dw-extra-info 0))
-  "Return a plist of tag-keybd-input struct parameters.  A helper function for calling send-inputs below."
-  `(w-vk ,w-vk w-scan ,w-scan dw-flags ,dw-flags time ,time dw-extra-info ,dw-extra-info))
+(defstruct keybd-input
+  "A Lisp version of the tag-keybd-input CFFI structure."
+  (w-vk 0)
+  (w-scan 0)
+  (dw-flags 0)
+  (time 0)
+  (dw-extra-info 0))
 
 (defun send-inputs (inputs)
-  "Call the Windows API SendInput function with inputs created by make-mouse-input/make-keybd-input."
+  "Call the Windows API SendInput function with a list of mouse-input/keybd-input structs."
   (let ((num-inputs (length inputs)))
     (cffi:with-foreign-object (in 'input num-inputs)
       (loop for i from 0 below num-inputs
             for input in inputs
             for input-ptr = (cffi:mem-aref in 'input i)
             for union-ptr = (cffi:foreign-slot-pointer input-ptr 'input 'dummy-union-name)
-            do
-            (case (length input)
-              (12 (setf (cffi:foreign-slot-value input-ptr 'input 'type) +input-mouse+
-                        (cffi:foreign-slot-value union-ptr 'mouse-input 'dx) (getf input 'dx)
-                        (cffi:foreign-slot-value union-ptr 'mouse-input 'dy) (getf input 'dy)
-                        (cffi:foreign-slot-value union-ptr 'mouse-input 'mouse-data) (getf input 'mouse-data)
-                        (cffi:foreign-slot-value union-ptr 'mouse-input 'dw-flags) (getf input 'dw-flags)
-                        (cffi:foreign-slot-value union-ptr 'mouse-input 'time) (getf input 'time)
-                        (cffi:foreign-slot-value union-ptr 'mouse-input 'dw-extra-info) (getf input 'dw-extra-info)))
-              (10 (setf (cffi:foreign-slot-value input-ptr 'input 'type) +input-keyboard+
-                        (cffi:foreign-slot-value union-ptr 'keybd-input 'w-vk) (getf input 'w-vk)
-                        (cffi:foreign-slot-value union-ptr 'keybd-input 'w-scan) (getf input 'w-scan)
-                        (cffi:foreign-slot-value union-ptr 'keybd-input 'dw-flags) (getf input 'dw-flags)
-                        (cffi:foreign-slot-value union-ptr 'keybd-input 'time) (getf input 'time)
-                        (cffi:foreign-slot-value union-ptr 'keybd-input 'dw-extra-info) (getf input 'dw-extra-info)))))
+            do (etypecase input
+                 (mouse-input
+                  (setf (cffi:foreign-slot-value input-ptr 'input 'type) +input-mouse+
+                        (cffi:foreign-slot-value union-ptr 'mi 'dx) (mouse-input-dx input)
+                        (cffi:foreign-slot-value union-ptr 'mi 'dy) (mouse-input-dy input)
+                        (cffi:foreign-slot-value union-ptr 'mi 'mouse-data) (mouse-input-mouse-data input)
+                        (cffi:foreign-slot-value union-ptr 'mi 'dw-flags) (mouse-input-dw-flags input)
+                        (cffi:foreign-slot-value union-ptr 'mi 'time) (mouse-input-time input)
+                        (cffi:foreign-slot-value union-ptr 'mi 'dw-extra-info) (mouse-input-dw-extra-info input)))
+                 (keybd-input
+                  (setf (cffi:foreign-slot-value input-ptr 'input 'type) +input-keyboard+
+                        (cffi:foreign-slot-value union-ptr 'ki 'w-vk) (keybd-input-w-vk input)
+                        (cffi:foreign-slot-value union-ptr 'ki 'w-scan) (keybd-input-w-scan input)
+                        (cffi:foreign-slot-value union-ptr 'ki 'dw-flags) (keybd-input-dw-flags input)
+                        (cffi:foreign-slot-value union-ptr 'ki 'time) (keybd-input-time input)
+                        (cffi:foreign-slot-value union-ptr 'ki 'dw-extra-info) (keybd-input-dw-extra-info input)))))
       (= num-inputs (%send-input num-inputs in (cffi:foreign-type-size 'input))))))
 
 (defun send-input (input)
-  "Call the Windows API SendInput function with a single input created by make-mouse-input/make-keybd-input."
+  "Call the Windows API SendInput function with a single mouse-input / keybd-input struct."
   (send-inputs (list input)))
 
 (defun normalized-absolute-coordinate (coordinate lowest-value width-or-height)
