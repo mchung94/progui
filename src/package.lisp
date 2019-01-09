@@ -26,6 +26,7 @@
    #:virtual-screen-rect
    #:get-cursor-position
    #:move-cursor
+   #:move-cursor-smoothly
    #:press-mouse-button
    #:release-mouse-button
    #:get-double-click-time

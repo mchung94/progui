@@ -32,6 +32,31 @@
   "Move the cursor to the given (X, Y) coordinate.  Return T if the event was successfully sent."
   (progui-sys:move-cursor x y))
 
+(defun quartic-easing-out (start end current-time total-time)
+  "Calculate a value moving from START to END over TOTAL-TIME, gradually decelerating to zero velocity.
+CURRENT-TIME determines the value at the given point in time.
+Both times are arbitrary units as long as they're consistent."
+  (let ((total-distance (- end start))
+        (time-fraction (1- (/ current-time total-time))))
+    (+ start (* (- total-distance) (1- (expt time-fraction 4))))))
+
+(defun move-cursor-smoothly (x y &optional (duration-seconds 1/2))
+  "Move the cursor from its current position to (X, Y) over a duration given in seconds.
+Return T if the cursor ends at the given position."
+  (loop with (start-x . start-y) = (get-cursor-position)
+        with start-time = (get-internal-real-time)
+        with total-time = (* duration-seconds internal-time-units-per-second)
+        for current-time = (- (get-internal-real-time) start-time)
+        for current-x = (quartic-easing-out start-x x current-time total-time)
+        for current-y = (quartic-easing-out start-y y current-time total-time)
+        while (<= current-time total-time)
+        do (move-cursor current-x current-y)
+        (sleep 0.001)
+        finally (progn
+                  (move-cursor x y)
+                  (destructuring-bind (final-x . final-y) (get-cursor-position)
+                    (return (and (= x final-x) (= y final-y)))))))
+
 (defun press-mouse-button (button)
   "Press the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
 Return T if the event was successfully sent."

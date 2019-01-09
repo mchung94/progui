@@ -71,6 +71,25 @@ the event was successfully sent.
 => T
 ```
 
+`move-cursor-smoothly`: Move the cursor from its current position to (X, Y)
+over a duration given in seconds.  Return T if the cursor ends at the given
+position.  Basically, this makes it so you can see the cursor gradually move
+to its destination instead of instantly moving there.
+```lisp
+(progui:move-cursor-smoothly 0 0 3/4)
+=> T ; moves the cursor to (0, 0) over 3/4 of a second duration
+
+(progui:move-cursor-smoothly 1000 1000)
+=> T ; moves the cursor to (1000, 1000) over half a second duration
+
+(progui:get-cursor-position)
+=> (0 . 0) ; position at the start
+(progui:move-cursor-smoothly 10000 10000)
+=> NIL ; out of range, can't move there
+(progui:get-cursor-position)
+=> (2559 . 1439) ; it tried to gradually move there but stopped at the corner
+```
+
 `press-mouse-button`: Press the given mouse button.
 Return T if the event was successfully sent.
 ```lisp
