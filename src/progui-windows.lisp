@@ -38,8 +38,8 @@ Return the old DPI awareness context."
   (lp-point :pointer))
 
 ;;; Define the Windows API SendInput function
-(cffi:defctype dword :unsigned-long)
 (cffi:defctype word :unsigned-short)
+(cffi:defctype dword :unsigned-long)
 (cffi:defctype ulong-ptr #+:x86-64 :uint64 #-:x86-64 :unsigned-long)
 
 (cffi:defcstruct tag-mouse-input
@@ -152,38 +152,42 @@ as if it was 3200x1800."
       (cons (cffi:foreign-slot-value p '(:struct point) 'x)
             (cffi:foreign-slot-value p '(:struct point) 'y)))))
 
-(defun make-mouse-input-plist (&key (dx 0) (dy 0) (mouse-data 0) (dw-flags 0) (time 0) (dw-extra-info 0))
-  "Return a plist of tag-mouse-input struct parameters.  Just a helper function for calling send-mouse-inputs below."
+(defun make-mouse-input (&key (dx 0) (dy 0) (mouse-data 0) (dw-flags 0) (time 0) (dw-extra-info 0))
+  "Return a plist of tag-mouse-input struct parameters.  A helper function for calling send-inputs below."
   `(dx ,dx dy ,dy mouse-data ,mouse-data dw-flags ,dw-flags time ,time dw-extra-info ,dw-extra-info))
 
-(defun send-mouse-inputs (mouse-input-plists)
-  "A convenience function to send a number of mouse inputs to SendInput in one call.
-Return T if all events were successfully sent."
-  (let ((num-inputs (length mouse-input-plists)))
+(defun make-keybd-input (&key (w-vk 0) (w-scan 0) (dw-flags 0) (time 0) (dw-extra-info 0))
+  "Return a plist of tag-keybd-input struct parameters.  A helper function for calling send-inputs below."
+  `(w-vk ,w-vk w-scan ,w-scan dw-flags ,dw-flags time ,time dw-extra-info ,dw-extra-info))
+
+(defun send-inputs (inputs)
+  "Call the Windows API SendInput function with inputs created by make-mouse-input/make-keybd-input."
+  (let ((num-inputs (length inputs)))
     (cffi:with-foreign-object (in 'input num-inputs)
       (loop for i from 0 below num-inputs
-            for mi-plist in mouse-input-plists
+            for input in inputs
             for input-ptr = (cffi:mem-aref in 'input i)
-            for mi-ptr = (cffi:foreign-slot-pointer input-ptr 'input 'dummy-union-name)
-            do (setf (cffi:foreign-slot-value input-ptr 'input 'type) +input-mouse+
-                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'dx) (getf mi-plist 'dx)
-                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'dy) (getf mi-plist 'dy)
-                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'mouse-data) (getf mi-plist 'mouse-data)
-                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'dw-flags) (getf mi-plist 'dw-flags)
-                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'time) (getf mi-plist 'time)
-                     (cffi:foreign-slot-value mi-ptr 'mouse-input 'dw-extra-info) (getf mi-plist 'dw-extra-info)))
+            for union-ptr = (cffi:foreign-slot-pointer input-ptr 'input 'dummy-union-name)
+            do
+            (case (length input)
+              (12 (setf (cffi:foreign-slot-value input-ptr 'input 'type) +input-mouse+
+                        (cffi:foreign-slot-value union-ptr 'mouse-input 'dx) (getf input 'dx)
+                        (cffi:foreign-slot-value union-ptr 'mouse-input 'dy) (getf input 'dy)
+                        (cffi:foreign-slot-value union-ptr 'mouse-input 'mouse-data) (getf input 'mouse-data)
+                        (cffi:foreign-slot-value union-ptr 'mouse-input 'dw-flags) (getf input 'dw-flags)
+                        (cffi:foreign-slot-value union-ptr 'mouse-input 'time) (getf input 'time)
+                        (cffi:foreign-slot-value union-ptr 'mouse-input 'dw-extra-info) (getf input 'dw-extra-info)))
+              (10 (setf (cffi:foreign-slot-value input-ptr 'input 'type) +input-keyboard+
+                        (cffi:foreign-slot-value union-ptr 'keybd-input 'w-vk) (getf input 'w-vk)
+                        (cffi:foreign-slot-value union-ptr 'keybd-input 'w-scan) (getf input 'w-scan)
+                        (cffi:foreign-slot-value union-ptr 'keybd-input 'dw-flags) (getf input 'dw-flags)
+                        (cffi:foreign-slot-value union-ptr 'keybd-input 'time) (getf input 'time)
+                        (cffi:foreign-slot-value union-ptr 'keybd-input 'dw-extra-info) (getf input 'dw-extra-info)))))
       (= num-inputs (%send-input num-inputs in (cffi:foreign-type-size 'input))))))
 
-(defun send-mouse-input (&key (dx 0) (dy 0) (mouse-data 0) (dw-flags 0) (time 0) (dw-extra-info 0))
-  "A convenience function to call SendInput for a single mouse input.
-Return T if the event was successfully sent."
-  (send-mouse-inputs
-   (list (make-mouse-input-plist :dx dx
-                                 :dy dy
-                                 :mouse-data mouse-data
-                                 :dw-flags dw-flags
-                                 :time time
-                                 :dw-extra-info dw-extra-info))))
+(defun send-input (input)
+  "Call the Windows API SendInput function with a single input created by make-mouse-input/make-keybd-input."
+  (send-inputs (list input)))
 
 (defun normalized-absolute-coordinate (coordinate lowest-value width-or-height)
   "Convert a virtual screen pixel coordinate to an absolute value in the range [0, 65535]."
@@ -195,11 +199,12 @@ Return T if the event was successfully sent."
     (let* ((normalized-x (normalized-absolute-coordinate x (virtual-screen-left) (virtual-screen-width)))
            (normalized-y (normalized-absolute-coordinate y (virtual-screen-top) (virtual-screen-height)))
            (flags (logior +mouseeventf-move+ +mouseeventf-virtualdesk+ +mouseeventf-absolute+))
-           (retval (send-mouse-input :dx normalized-x :dy normalized-y :dw-flags flags)))
+           (mouse-input (make-mouse-input :dx normalized-x :dy normalized-y :dw-flags flags))
+           (retval (send-input mouse-input)))
       ;; Try it a second time if it doesn't appear at the right place.
       (destructuring-bind (real-x . real-y) (get-cursor-position)
         (when (or (/= real-x x) (/= real-y y))
-          (setf retval (send-mouse-input :dx normalized-x :dy normalized-y :dw-flags flags))))
+          (setf retval (send-input mouse-input))))
       retval)))
 
 (defun mouse-buttons-swapped-p ()
@@ -237,8 +242,8 @@ PRESSP should be T when pressing the button or NIL when releasing the button."
 on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
 Return T if the event was successfully sent."
   (let ((adjusted-button (adjust-for-swap button)))
-    (send-mouse-input :mouse-data (button-click-mouse-data adjusted-button)
-                      :dw-flags (button-click-dw-flags adjusted-button :pressp t))))
+    (send-input (make-mouse-input :mouse-data (button-click-mouse-data adjusted-button)
+                                  :dw-flags (button-click-dw-flags adjusted-button :pressp t)))))
 
 (defun release-mouse-button (button)
   "Release the given mouse button, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
@@ -246,8 +251,8 @@ Return T if the event was successfully sent."
 on the side of the mouse.  :PRIMARY and :SECONDARY are equal to :LEFT and :RIGHT unless the mouse buttons are swapped.
 Return T if the event was successfully sent."
   (let ((adjusted-button (adjust-for-swap button)))
-    (send-mouse-input :mouse-data (button-click-mouse-data adjusted-button)
-                      :dw-flags (button-click-dw-flags adjusted-button :pressp nil))))
+    (send-input (make-mouse-input :mouse-data (button-click-mouse-data adjusted-button)
+                                  :dw-flags (button-click-dw-flags adjusted-button :pressp nil)))))
 
 (defun click-mouse-button (button num-times)
   "Click the given mouse button NUM-TIMES times, one of :LEFT :MIDDLE :RIGHT :XBUTTON1 :XBUTTON2 :PRIMARY :SECONDARY.
@@ -260,9 +265,9 @@ Return T if all events were successfully sent."
          (mouse-data (button-click-mouse-data adjusted-button))
          (press-flags (button-click-dw-flags adjusted-button :pressp t))
          (release-flags (button-click-dw-flags adjusted-button :pressp nil))
-         (press (make-mouse-input-plist :mouse-data mouse-data :dw-flags press-flags))
-         (release (make-mouse-input-plist :mouse-data mouse-data :dw-flags release-flags)))
-    (send-mouse-inputs (loop repeat num-times nconc (list press release)))))
+         (press (make-mouse-input :mouse-data mouse-data :dw-flags press-flags))
+         (release (make-mouse-input :mouse-data mouse-data :dw-flags release-flags)))
+    (send-inputs (loop repeat num-times nconc (list press release)))))
 
 (defun get-double-click-time ()
   "Return the maximum number of seconds (a real number) delay between two clicks to count as a double-click."
@@ -271,9 +276,9 @@ Return T if all events were successfully sent."
 (defun rotate-mouse-wheel (clicks)
   "Rotate the mouse wheel the given number of clicks.  Positive values rotate the wheel forward, away from the user,
 and negative values rotate the wheel backward, toward the user.  Return T if the event was successfully sent."
-  (send-mouse-input :mouse-data (* clicks +wheel-delta+) :dw-flags +mouseeventf-wheel+))
+  (send-input (make-mouse-input :mouse-data (* clicks +wheel-delta+) :dw-flags +mouseeventf-wheel+)))
 
 (defun rotate-mouse-wheel-horizontally (clicks)
   "Rotate the mouse wheel horizontally the given numberr of clicks.  Positive values rotate the wheel to the right,
 and negative values rotate the wheel to the left.  Return T if the event was successfully sent."
-  (send-mouse-input :mouse-data (* clicks +wheel-delta+) :dw-flags +mouseeventf-hwheel+))
+  (send-input (make-mouse-input :mouse-data (* clicks +wheel-delta+) :dw-flags +mouseeventf-hwheel+)))
