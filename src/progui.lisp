@@ -97,3 +97,14 @@ and negative values rotate the wheel backward, toward the user.  Return T if the
   "Rotate the mouse wheel horizontally the given numberr of clicks.  Positive values rotate the wheel to the right,
 and negative values rotate the wheel to the left.  Return T if the event was successfully sent."
   (progui-sys:rotate-mouse-wheel-horizontally clicks))
+
+(defvar *keys* (loop for k being the hash-keys in progui-sys:*keys* collect k)
+  "A list of all valid keys (as keyword symbols) to be used in keyboard functions.")
+
+(defun press-key (key)
+  "Press the given key on the keyboard."
+  (progui-sys:press-key key))
+
+(defun release-key (key)
+  "Release the given key on the keyboard."
+  (progui-sys:release-key key))

@@ -13,6 +13,9 @@
    #:rotate-mouse-wheel
    #:rotate-mouse-wheel-horizontally
    #:click-mouse-button
+   #:*keys*
+   #:press-key
+   #:release-key
    ))
 
 (defpackage #:progui
@@ -34,4 +37,7 @@
    #:double-click-mouse-button
    #:rotate-mouse-wheel
    #:rotate-mouse-wheel-horizontally
+   #:*keys*
+   #:press-key
+   #:release-key
    ))

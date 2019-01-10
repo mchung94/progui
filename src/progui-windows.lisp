@@ -76,6 +76,11 @@ Return the old DPI awareness context."
   (time dword)
   (dw-extra-info ulong-ptr))
 
+(defconstant +keyeventf-extendedkey+ #x0001)
+(defconstant +keyeventf-keyup+ #x0002)
+(defconstant +keyeventf-scancode+ #x0008)
+(defconstant +keyeventf-unicode+ #x0004)
+
 (cffi:defcstruct tag-hardware-input
   (u-msg dword)
   (w-param-l word)
@@ -106,9 +111,28 @@ Return the old DPI awareness context."
   (p-inputs :pointer)
   (cb-size :int))
 
-;;; Define the GetDoubleClickTime function
+;;; Define the Windows API GetDoubleClickTime function
 (cffi:defcfun (%get-double-click-time "GetDoubleClickTime" :convention :stdcall) :uint
   "Return the maximum number of milliseconds that may occur between two clicks to count as a double-click.")
+
+;;; Define the Windows API GetKeyboardLayout function
+(cffi:defcfun (%get-keyboard-layout "GetKeyboardLayout" :convention :stdcall) :pointer
+  "Retrieve the active input locale identifier, formerly called the keyboard layout."
+  (id-thread dword))
+
+;;; Define the Windows API MapVirtualKeyExW function
+(cffi:defcfun (%map-virtual-key-ex-w "MapVirtualKeyExW" :convention :stdcall) :uint
+  "Translate a virtual-key code to a scan code or the other way around."
+  (u-code :uint)
+  (u-map-type :uint)
+  (dwhkl :pointer))
+
+(defconstant +mapvk-vk-to-vsc+ 0)
+(defconstant +mapvk-vsc-to-vk+ 1)
+(defconstant +mapvk-vk-to-char+ 2)
+(defconstant +mapvk-vsc-to-vk-ex+ 3)
+(defconstant +mapvk-vk-to-vsc-ex+ 4)
+
 
 (defun virtual-screen-left ()
   "Return the coordinate for the left side of the virtual screen."
@@ -290,3 +314,259 @@ and negative values rotate the wheel backward, toward the user.  Return T if the
   "Rotate the mouse wheel horizontally the given numberr of clicks.  Positive values rotate the wheel to the right,
 and negative values rotate the wheel to the left.  Return T if the event was successfully sent."
   (send-input (make-mouse-input :mouse-data (* clicks +wheel-delta+) :dw-flags +mouseeventf-hwheel+)))
+
+(defvar *keys*
+  (let ((mapping (make-hash-table :test #'eq))
+        (keys '(:VK-LBUTTON                         #x01
+                :VK-RBUTTON                         #x02
+                :VK-CANCEL                          #x03
+                :VK-MBUTTON                         #x04
+                :VK-XBUTTON1                        #x05
+                :VK-XBUTTON2                        #x06
+                :VK-BACK                            #x08
+                :VK-TAB                             #x09
+                :VK-CLEAR                           #x0C
+                :VK-RETURN                          #x0D
+                :VK-SHIFT                           #x10
+                :VK-CONTROL                         #x11
+                :VK-MENU                            #x12
+                :VK-PAUSE                           #x13
+                :VK-CAPITAL                         #x14
+                :VK-KANA                            #x15
+                :VK-HANGEUL                         #x15
+                :VK-HANGUL                          #x15
+                :VK-JUNJA                           #x17
+                :VK-FINAL                           #x18
+                :VK-HANJA                           #x19
+                :VK-KANJI                           #x19
+                :VK-ESCAPE                          #x1B
+                :VK-CONVERT                         #x1C
+                :VK-NONCONVERT                      #x1D
+                :VK-ACCEPT                          #x1E
+                :VK-MODECHANGE                      #x1F
+                :VK-SPACE                           #x20
+                :VK-PRIOR                           #x21
+                :VK-NEXT                            #x22
+                :VK-END                             #x23
+                :VK-HOME                            #x24
+                :VK-LEFT                            #x25
+                :VK-UP                              #x26
+                :VK-RIGHT                           #x27
+                :VK-DOWN                            #x28
+                :VK-SELECT                          #x29
+                :VK-PRINT                           #x2A
+                :VK-EXECUTE                         #x2B
+                :VK-SNAPSHOT                        #x2C
+                :VK-INSERT                          #x2D
+                :VK-DELETE                          #x2E
+                :VK-HELP                            #x2F
+                :VK-0                               #x30
+                :VK-1                               #x31
+                :VK-2                               #x32
+                :VK-3                               #x33
+                :VK-4                               #x34
+                :VK-5                               #x35
+                :VK-6                               #x36
+                :VK-7                               #x37
+                :VK-8                               #x38
+                :VK-9                               #x39
+                :VK-A                               #x41
+                :VK-B                               #x42
+                :VK-C                               #x43
+                :VK-D                               #x44
+                :VK-E                               #x45
+                :VK-F                               #x46
+                :VK-G                               #x47
+                :VK-H                               #x48
+                :VK-I                               #x49
+                :VK-J                               #x4A
+                :VK-K                               #x4B
+                :VK-L                               #x4C
+                :VK-M                               #x4D
+                :VK-N                               #x4E
+                :VK-O                               #x4F
+                :VK-P                               #x50
+                :VK-Q                               #x51
+                :VK-R                               #x52
+                :VK-S                               #x53
+                :VK-T                               #x54
+                :VK-U                               #x55
+                :VK-V                               #x56
+                :VK-W                               #x57
+                :VK-X                               #x58
+                :VK-Y                               #x59
+                :VK-Z                               #x5A
+                :VK-LWIN                            #x5B
+                :VK-RWIN                            #x5C
+                :VK-APPS                            #x5D
+                :VK-SLEEP                           #x5F
+                :VK-NUMPAD0                         #x60
+                :VK-NUMPAD1                         #x61
+                :VK-NUMPAD2                         #x62
+                :VK-NUMPAD3                         #x63
+                :VK-NUMPAD4                         #x64
+                :VK-NUMPAD5                         #x65
+                :VK-NUMPAD6                         #x66
+                :VK-NUMPAD7                         #x67
+                :VK-NUMPAD8                         #x68
+                :VK-NUMPAD9                         #x69
+                :VK-MULTIPLY                        #x6A
+                :VK-ADD                             #x6B
+                :VK-SEPARATOR                       #x6C
+                :VK-SUBTRACT                        #x6D
+                :VK-DECIMAL                         #x6E
+                :VK-DIVIDE                          #x6F
+                :VK-F1                              #x70
+                :VK-F2                              #x71
+                :VK-F3                              #x72
+                :VK-F4                              #x73
+                :VK-F5                              #x74
+                :VK-F6                              #x75
+                :VK-F7                              #x76
+                :VK-F8                              #x77
+                :VK-F9                              #x78
+                :VK-F10                             #x79
+                :VK-F11                             #x7A
+                :VK-F12                             #x7B
+                :VK-F13                             #x7C
+                :VK-F14                             #x7D
+                :VK-F15                             #x7E
+                :VK-F16                             #x7F
+                :VK-F17                             #x80
+                :VK-F18                             #x81
+                :VK-F19                             #x82
+                :VK-F20                             #x83
+                :VK-F21                             #x84
+                :VK-F22                             #x85
+                :VK-F23                             #x86
+                :VK-F24                             #x87
+                :VK-NAVIGATION-VIEW                 #x88
+                :VK-NAVIGATION-MENU                 #x89
+                :VK-NAVIGATION-UP                   #x8A
+                :VK-NAVIGATION-DOWN                 #x8B
+                :VK-NAVIGATION-LEFT                 #x8C
+                :VK-NAVIGATION-RIGHT                #x8D
+                :VK-NAVIGATION-ACCEPT               #x8E
+                :VK-NAVIGATION-CANCEL               #x8F
+                :VK-NUMLOCK                         #x90
+                :VK-SCROLL                          #x91
+                :VK-OEM-NEC-EQUAL                   #x92
+                :VK-OEM-FJ-JISHO                    #x92
+                :VK-OEM-FJ-MASSHOU                  #x93
+                :VK-OEM-FJ-TOUROKU                  #x94
+                :VK-OEM-FJ-LOYA                     #x95
+                :VK-OEM-FJ-ROYA                     #x96
+                :VK-LSHIFT                          #xA0
+                :VK-RSHIFT                          #xA1
+                :VK-LCONTROL                        #xA2
+                :VK-RCONTROL                        #xA3
+                :VK-LMENU                           #xA4
+                :VK-RMENU                           #xA5
+                :VK-BROWSER-BACK                    #xA6
+                :VK-BROWSER-FORWARD                 #xA7
+                :VK-BROWSER-REFRESH                 #xA8
+                :VK-BROWSER-STOP                    #xA9
+                :VK-BROWSER-SEARCH                  #xAA
+                :VK-BROWSER-FAVORITES               #xAB
+                :VK-BROWSER-HOME                    #xAC
+                :VK-VOLUME-MUTE                     #xAD
+                :VK-VOLUME-DOWN                     #xAE
+                :VK-VOLUME-UP                       #xAF
+                :VK-MEDIA-NEXT-TRACK                #xB0
+                :VK-MEDIA-PREV-TRACK                #xB1
+                :VK-MEDIA-STOP                      #xB2
+                :VK-MEDIA-PLAY-PAUSE                #xB3
+                :VK-LAUNCH-MAIL                     #xB4
+                :VK-LAUNCH-MEDIA-SELECT             #xB5
+                :VK-LAUNCH-APP1                     #xB6
+                :VK-LAUNCH-APP2                     #xB7
+                :VK-OEM-1                           #xBA
+                :VK-OEM-PLUS                        #xBB
+                :VK-OEM-COMMA                       #xBC
+                :VK-OEM-MINUS                       #xBD
+                :VK-OEM-PERIOD                      #xBE
+                :VK-OEM-2                           #xBF
+                :VK-OEM-3                           #xC0
+                :VK-GAMEPAD-A                       #xC3
+                :VK-GAMEPAD-B                       #xC4
+                :VK-GAMEPAD-X                       #xC5
+                :VK-GAMEPAD-Y                       #xC6
+                :VK-GAMEPAD-RIGHT-SHOULDER          #xC7
+                :VK-GAMEPAD-LEFT-SHOULDER           #xC8
+                :VK-GAMEPAD-LEFT-TRIGGER            #xC9
+                :VK-GAMEPAD-RIGHT-TRIGGER           #xCA
+                :VK-GAMEPAD-DPAD-UP                 #xCB
+                :VK-GAMEPAD-DPAD-DOWN               #xCC
+                :VK-GAMEPAD-DPAD-LEFT               #xCD
+                :VK-GAMEPAD-DPAD-RIGHT              #xCE
+                :VK-GAMEPAD-MENU                    #xCF
+                :VK-GAMEPAD-VIEW                    #xD0
+                :VK-GAMEPAD-LEFT-THUMBSTICK-BUTTON  #xD1
+                :VK-GAMEPAD-RIGHT-THUMBSTICK-BUTTON #xD2
+                :VK-GAMEPAD-LEFT-THUMBSTICK-UP      #xD3
+                :VK-GAMEPAD-LEFT-THUMBSTICK-DOWN    #xD4
+                :VK-GAMEPAD-LEFT-THUMBSTICK-RIGHT   #xD5
+                :VK-GAMEPAD-LEFT-THUMBSTICK-LEFT    #xD6
+                :VK-GAMEPAD-RIGHT-THUMBSTICK-UP     #xD7
+                :VK-GAMEPAD-RIGHT-THUMBSTICK-DOWN   #xD8
+                :VK-GAMEPAD-RIGHT-THUMBSTICK-RIGHT  #xD9
+                :VK-GAMEPAD-RIGHT-THUMBSTICK-LEFT   #xDA
+                :VK-OEM-4                           #xDB
+                :VK-OEM-5                           #xDC
+                :VK-OEM-6                           #xDD
+                :VK-OEM-7                           #xDE
+                :VK-OEM-8                           #xDF
+                :VK-OEM-AX                          #xE1
+                :VK-OEM-102                         #xE2
+                :VK-ICO-HELP                        #xE3
+                :VK-ICO-00                          #xE4
+                :VK-PROCESSKEY                      #xE5
+                :VK-ICO-CLEAR                       #xE6
+                :VK-PACKET                          #xE7
+                :VK-OEM-RESET                       #xE9
+                :VK-OEM-JUMP                        #xEA
+                :VK-OEM-PA1                         #xEB
+                :VK-OEM-PA2                         #xEC
+                :VK-OEM-PA3                         #xED
+                :VK-OEM-WSCTRL                      #xEE
+                :VK-OEM-CUSEL                       #xEF
+                :VK-OEM-ATTN                        #xF0
+                :VK-OEM-FINISH                      #xF1
+                :VK-OEM-COPY                        #xF2
+                :VK-OEM-AUTO                        #xF3
+                :VK-OEM-ENLW                        #xF4
+                :VK-OEM-BACKTAB                     #xF5
+                :VK-ATTN                            #xF6
+                :VK-CRSEL                           #xF7
+                :VK-EXSEL                           #xF8
+                :VK-EREOF                           #xF9
+                :VK-PLAY                            #xFA
+                :VK-ZOOM                            #xFB
+                :VK-NONAME                          #xFC
+                :VK-PA1                             #xFD
+                :VK-OEM-CLEAR                       #xFE)))
+        (loop for (k v) on keys by #'cddr
+              do (setf (gethash k mapping) v)
+              finally (return mapping)))
+    "A mapping from virtual key code names to their values.")
+
+(defun key->keybd-input (key &key (keyup nil))
+  "Create a keyboard input using the given virtual key code's keyword symbol.
+If KEYUP is NIL then the key is pressed down, otherwise it's released."
+  (let* ((vk-code (gethash key *keys*))
+         (scan-code (%map-virtual-key-ex-w vk-code +mapvk-vk-to-vsc-ex+ (%get-keyboard-layout 0)))
+         (low-byte (logand #xff scan-code))
+         (high-byte (ash scan-code -8)))
+    (make-keybd-input :w-vk vk-code
+                      :w-scan low-byte
+                      :dw-flags (logior (if keyup +keyeventf-keyup+ 0)
+                                        +keyeventf-scancode+
+                                        (if (zerop high-byte) 0 +keyeventf-extendedkey+)))))
+
+(defun press-key (key)
+  "Press a key down, represented by the keyword symbol for the key."
+  (send-input (key->keybd-input key :keyup nil)))
+
+(defun release-key (key)
+  "Release a key, represented by the keyword symbol for the key."
+  (send-input (key->keybd-input key :keyup t)))
