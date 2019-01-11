@@ -47,6 +47,7 @@ and forward buttons, respectively.
 ## Functionality
 These are in the `progui` package:
 
+### Screen Functions
 `rect`: A rectangle class containing left and top X,Y coordinates plus width
 and height.  `rect-left`, `rect-top`, `rect-width`, and `rect-height` are
 accessors.
@@ -58,6 +59,7 @@ all the monitors.
 => #<PROGUI:RECT left: -1920 top: 0 width: 4480 height: 1440 4020012263>
 ```
 
+### Mouse / Cursor Functions
 `get-cursor-position`: Return the X, Y virtual screen coordinates of the cursor in a `cons`.
 ```lisp
 (progui:get-cursor-position)
@@ -156,5 +158,26 @@ was successfully sent.
 
 ```lisp
 (progui:rotate-mouse-wheel-horizontally -4)
+=> T
+```
+
+### Keyboard Functions
+`*keys*`: A list of keyword symbols representing keys that be passed into other
+keyboard functions.
+```lisp
+progui:*keys*
+=> (:VK-F2 :VK-2 :VK-OEM-WSCTRL ...
+```
+
+`press-key`: Press the given key.  Return T if the event was successfully sent.
+```lisp
+(progui:press-key :vk-a)
+=> T
+```
+
+`release-key`: Release the given key.  Return T if the event was successfully
+sent.
+```lisp
+(progui:release-key :vk-a)
 => T
 ```
