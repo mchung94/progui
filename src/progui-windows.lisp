@@ -16,16 +16,16 @@
   (n-index :int))
 
 ;;; Define the Windows API SetThreadDpiAwarenessContext function
-(defvar *dpi-awareness-context-unaware* (cffi:make-pointer -1))
-(defvar *dpi-awareness-context-system-aware* (cffi:make-pointer -2))
-(defvar *dpi-awareness-context-per-monitor-aware* (cffi:make-pointer -3))
-(defvar *dpi-awareness-context-per-monitor-aware-v2* (cffi:make-pointer -4))
-(defvar *dpi-awareness-context-unaware-gdiscaled* (cffi:make-pointer -5))
+(defvar *dpi-awareness-context-unaware* -1)
+(defvar *dpi-awareness-context-system-aware* -2)
+(defvar *dpi-awareness-context-per-monitor-aware* -3)
+(defvar *dpi-awareness-context-per-monitor-aware-v2* -4)
+(defvar *dpi-awareness-context-unaware-gdiscaled* -5)
 
-(cffi:defcfun (%set-thread-dpi-awareness-context "SetThreadDpiAwarenessContext" :convention :stdcall) :pointer
+(cffi:defcfun (%set-thread-dpi-awareness-context "SetThreadDpiAwarenessContext" :convention :stdcall) :int
   "Set the DPI awareness for the current thread to the given awareness context.
 Return the old DPI awareness context."
-  (dpi-context :pointer))
+  (dpi-context :int))
 
 ;;; Define the Windows API GetCursorPos function
 (cffi:defctype bool :int)
