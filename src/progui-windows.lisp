@@ -133,6 +133,12 @@ Return the old DPI awareness context."
 (defconstant +mapvk-vsc-to-vk-ex+ 3)
 (defconstant +mapvk-vk-to-vsc-ex+ 4)
 
+;;; Define the Windows API GetAsyncKeyState function
+(cffi:defcfun (%get-async-key-state "GetAsyncKeyState" :convention :stdcall) :short
+  "Determine if a key is currently up or down."
+  (v-key :int))
+
+
 
 (defun virtual-screen-left ()
   "Return the coordinate for the left side of the virtual screen."
@@ -570,3 +576,7 @@ If KEYUP is NIL then the key is pressed down, otherwise it's released."
 (defun release-key (key)
   "Release a key, represented by the keyword symbol for the key."
   (send-input (key->keybd-input key :keyup t)))
+
+(defun key-pressed-p (key)
+  "Return T if the key is currently pressed down."
+  (logbitp 15 (%get-async-key-state (gethash key *keys*))))

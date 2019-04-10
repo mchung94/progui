@@ -108,3 +108,7 @@ and negative values rotate the wheel to the left.  Return T if the event was suc
 (defun release-key (key)
   "Release the given key on the keyboard."
   (progui-sys:release-key key))
+
+(defun key-pressed-p (key)
+  "Return T if the key is currently pressed."
+  (progui-sys:key-pressed-p key))

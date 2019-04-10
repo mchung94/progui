@@ -16,6 +16,7 @@
    #:*keys*
    #:press-key
    #:release-key
+   #:key-pressed-p
    ))
 
 (defpackage #:progui
@@ -40,4 +41,5 @@
    #:*keys*
    #:press-key
    #:release-key
+   #:key-pressed-p
    ))
