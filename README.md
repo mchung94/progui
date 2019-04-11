@@ -181,3 +181,9 @@ sent.
 (progui:release-key :vk-a)
 => T
 ```
+
+`key-pressed-p`: Return T if the key is currently pressed down.
+```lisp
+(progui:key-pressed-p :vk-a)
+=> NIL
+```
