@@ -1,8 +1,9 @@
 # progui
 Programmatically control the mouse and keyboard.
 
-This is a work in progress.  Currently I'm working on supporting Windows 10.
-Once that's done, I can look into supporting other operating systems.
+Currently, mouse and keyboard control works well on Windows 10. This library
+doesn't work with earlier Windows versions because it relies on the latest
+functionality around DPI awareness.
 
 ## The Virtual Screen
 This code thinks of your displays the same way Windows 10 does: see
